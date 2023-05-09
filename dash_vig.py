@@ -8,7 +8,7 @@ import io
 
 # Create a new Dash app
 app = dash.Dash(__name__)
-
+server=app.server
 # Define the layout of the app
 app.layout = html.Div([
     # Add a file upload component to the app
