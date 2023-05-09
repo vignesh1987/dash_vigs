@@ -29,7 +29,7 @@ app.layout = html.Div([
             'margin': '10px'
         },
         # Allow users to upload a single file
-        multiple=False
+        multiple=True
     ),
     # Display the contents of the uploaded file to the user
     html.Div(id='output-data-upload')
