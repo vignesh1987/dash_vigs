@@ -1,17 +1,18 @@
-import dash
-from dash import dcc
-from dash import html
-from dash.dependencies import Input, Output, State
-import pandas as pd
 import base64
+import datetime
 import io
 
-# Create a new Dash app
-app = dash.Dash(__name__)
-server=app.server
-# Define the layout of the app
+import dash
+from dash.dependencies import Input, Output, State
+from dash import dcc, html, dash_table
+
+import pandas as pd
+
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
 app.layout = html.Div([
-    # Add a file upload component to the app
     dcc.Upload(
         id='upload-data',
         children=html.Div([
@@ -19,7 +20,7 @@ app.layout = html.Div([
             html.A('Select Files')
         ]),
         style={
-            'width': '50%',
+            'width': '100%',
             'height': '60px',
             'lineHeight': '60px',
             'borderWidth': '1px',
@@ -28,57 +29,59 @@ app.layout = html.Div([
             'textAlign': 'center',
             'margin': '10px'
         },
-        # Allow users to upload a single file
+        # Allow multiple files to be uploaded
         multiple=True
     ),
-    # Display the contents of the uploaded file to the user
-    html.Div(id='output-data-upload')
+    html.Div(id='output-data-upload'),
 ])
 
-# Define a function to parse the contents of the uploaded file
-def parse_contents(contents, filename):
-    # Split the contents of the file into a content type and a content string
+def parse_contents(contents, filename, date):
     content_type, content_string = contents.split(',')
 
-    # Decode the content string into bytes
     decoded = base64.b64decode(content_string)
-    
     try:
-        # If the file is a CSV file, read it into a pandas DataFrame
         if 'csv' in filename:
-            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
-        # If the file is an Excel file, read it into a pandas DataFrame
+            # Assume that the user uploaded a CSV file
+            df = pd.read_csv(
+                io.StringIO(decoded.decode('utf-8')))
         elif 'xls' in filename:
+            # Assume that the user uploaded an excel file
             df = pd.read_excel(io.BytesIO(decoded))
     except Exception as e:
-        # If there is an error reading the file, display an error message
         print(e)
         return html.Div([
             'There was an error processing this file.'
         ])
 
-    # Display the contents of the file to the user
     return html.Div([
         html.H5(filename),
-        html.Hr(),
-        html.Div([
-            dcc.Markdown('### Raw Content'),
-            html.Pre(df.head().to_markdown())
-        ])
+        html.H6(datetime.datetime.fromtimestamp(date)),
+
+        dash_table.DataTable(
+            df.to_dict('records'),
+            [{'name': i, 'id': i} for i in df.columns]
+        ),
+
+        html.Hr(),  # horizontal line
+
+        # For debugging, display the raw contents provided by the web browser
+        html.Div('Raw Content'),
+        html.Pre(contents[0:200] + '...', style={
+            'whiteSpace': 'pre-wrap',
+            'wordBreak': 'break-all'
+        })
     ])
 
-# Define a callback function to update the contents of the output component when a file is uploaded
 @app.callback(Output('output-data-upload', 'children'),
               Input('upload-data', 'contents'),
-              State('upload-data', 'filename'))
-def update_output(contents, filename):
-    if contents is not None:
-        # If a file has been uploaded, call the parse_contents function to process it
+              State('upload-data', 'filename'),
+              State('upload-data', 'last_modified'))
+def update_output(list_of_contents, list_of_names, list_of_dates):
+    if list_of_contents is not None:
         children = [
-            parse_contents(contents, filename)
-        ]
+            parse_contents(c, n, d) for c, n, d in
+            zip(list_of_contents, list_of_names, list_of_dates)]
         return children
 
-# Run the app
 if __name__ == '__main__':
-    app.run_server(debug=True, use_reloader=False)
+    app.run_server(debug=True, use_reloader=false)
